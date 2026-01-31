@@ -1,0 +1,51 @@
+name: project-checks
+
+on:
+  workflow_call:
+    inputs:
+      project:
+        required: true
+        type: string
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint
+        run: echo "Linting ${{ inputs.project }}..."
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: echo "Testing ${{ inputs.project }}..."
+
+  validate:
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate
+        run: |
+          if grep -q "fail" ${{ inputs.project }}/text.txt shared/text.txt 2>/dev/null; then
+            echo "Found 'fail' in ${{ inputs.project }}/text.txt or shared/text.txt"
+            exit 1
+          fi
+          echo "Validation passed for ${{ inputs.project }}"
+
+  build:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: echo "Building ${{ inputs.project }}..."
+
+  deploy-check:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy check
+        run: echo "${{ inputs.project }} is OK!"
