@@ -26,31 +26,34 @@ jobs:
               - 'c/**'
               - 'shared/**'
 
-  run-workflows:
+  run-a:
     needs: detect-changes
-    if: needs.detect-changes.outputs.projects != '[]'
-    strategy:
-      fail-fast: false
-      matrix:
-        project: ${{ fromJson(needs.detect-changes.outputs.projects) }}
-    uses: ./.github/workflows/${{ matrix.project }}.yml
+    if: contains(fromJson(needs.detect-changes.outputs.projects), 'a')
+    uses: ./.github/workflows/a.yml
+
+  run-b:
+    needs: detect-changes
+    if: contains(fromJson(needs.detect-changes.outputs.projects), 'b')
+    uses: ./.github/workflows/b.yml
+
+  run-c:
+    needs: detect-changes
+    if: contains(fromJson(needs.detect-changes.outputs.projects), 'c')
+    uses: ./.github/workflows/c.yml
 
   ci-result:
     runs-on: ubuntu-latest
-    needs: [detect-changes, run-workflows]
+    needs: [detect-changes, run-a, run-b, run-c]
     if: always()
     steps:
       - name: Check results
         run: |
-          if [ "${{ needs.detect-changes.outputs.projects }}" = "[]" ]; then
-            echo "No projects to run - success"
-            exit 0
-          fi
+          results="${{ needs.run-a.result }} ${{ needs.run-b.result }} ${{ needs.run-c.result }}"
 
-          if [ "${{ needs.run-workflows.result }}" = "success" ]; then
-            echo "All workflows passed!"
-            exit 0
-          else
+          if echo "$results" | grep -q "failure"; then
             echo "Some workflows failed!"
             exit 1
           fi
+
+          echo "All workflows passed!"
+          exit 0
