@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      projects: ${{ steps.filter.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            a:
+              - 'a/**'
+              - 'shared/**'
+            b:
+              - 'b/**'
+              - 'shared/**'
+            c:
+              - 'c/**'
+              - 'shared/**'
+
+  run-workflows:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.projects != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJson(needs.detect-changes.outputs.projects) }}
+    uses: ./.github/workflows/${{ matrix.project }}.yml
+
+  ci-result:
+    runs-on: ubuntu-latest
+    needs: [detect-changes, run-workflows]
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          if [ "${{ needs.detect-changes.outputs.projects }}" = "[]" ]; then
+            echo "No projects to run - success"
+            exit 0
+          fi
+
+          if [ "${{ needs.run-workflows.result }}" = "success" ]; then
+            echo "All workflows passed!"
+            exit 0
+          else
+            echo "Some workflows failed!"
+            exit 1
+          fi
