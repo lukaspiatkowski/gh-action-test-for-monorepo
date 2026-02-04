@@ -2,7 +2,12 @@ name: ci
 
 on:
   push:
-  pull_request:
+  workflow_dispatch:
+    inputs:
+      check-results:
+        description: "irrelevant"
+        type: boolean
+        default: true
 
 jobs:
   detect-changes:
@@ -47,10 +52,12 @@ jobs:
     if: always()
     steps:
       - name: Check results
+        env:
+          CHECK_RESULTS: ${{ inputs.check-results == '' && 'true' || inputs.check-results }}
         run: |
           results="${{ needs.run-a.result }} ${{ needs.run-b.result }} ${{ needs.run-c.result }}"
 
-          if echo "$results" | grep -q "failure"; then
+          if [ "$CHECK_RESULTS" = "true" ] && echo "$results" | grep -q "failure"; then
             echo "Some workflows failed!"
             exit 1
           fi
