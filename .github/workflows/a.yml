@@ -8,3 +8,15 @@ jobs:
     uses: ./.github/workflows/project-checks.yml
     with:
       project: a
+
+  ensure-b-build-finished:
+    uses: ./.github/workflows/wait-for-job.yml
+    with:
+      job-name: 'run-b / build'
+
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: ensure-b-build-finished
+    steps:
+      - run: echo "integration test passed"

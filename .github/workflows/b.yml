@@ -8,3 +8,8 @@ jobs:
     uses: ./.github/workflows/project-checks.yml
     with:
       project: b
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sleep 90

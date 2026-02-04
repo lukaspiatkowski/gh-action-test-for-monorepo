@@ -1,0 +1,58 @@
+name: wait-for-job
+
+on:
+  workflow_call:
+    inputs:
+      job-name:
+        description: 'The name of the job to wait for (regex pattern)'
+        required: true
+        type: string
+      poll-interval:
+        description: 'Polling interval in seconds'
+        required: false
+        type: number
+        default: 10
+
+jobs:
+  wait:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for job
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_NAME: ${{ inputs.job-name }}
+          POLL_INTERVAL: ${{ inputs.poll-interval }}
+        run: |
+          while true; do
+            jobs=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs --jq '.jobs')
+
+            target_job=$(echo "$jobs" | jq -r --arg name "$JOB_NAME" '.[] | select(.name | test($name))')
+
+            if [ -z "$target_job" ]; then
+              echo "Job '$JOB_NAME' not found, skipping"
+              exit 0
+            fi
+
+            status=$(echo "$target_job" | jq -r '.status')
+            conclusion=$(echo "$target_job" | jq -r '.conclusion')
+
+            if [ "$status" = "completed" ]; then
+              case "$conclusion" in
+                success)
+                  echo "Job completed successfully"
+                  exit 0
+                  ;;
+                skipped)
+                  echo "Job was skipped, proceeding"
+                  exit 0
+                  ;;
+                *)
+                  echo "::error::Job failed with conclusion: $conclusion"
+                  exit 1
+                  ;;
+              esac
+            fi
+
+            echo "Waiting for '$JOB_NAME'... (status: $status)"
+            sleep "$POLL_INTERVAL"
+          done
